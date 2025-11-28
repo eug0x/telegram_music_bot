@@ -10,7 +10,7 @@
 
 ## ⚡ Features Summary
 
-* **⚡ Fast Downloads:** Get your audio tracks delivered in just **5–15 seconds**.
+* **⚡ Fast Downloads:** Get your audio tracks delivered in just **5–10 seconds**.
 
 * **🧹 Clean Interface:** Bot auto-deletes the user command, keeping your chat tidy.
 
@@ -144,3 +144,4 @@ Set up your bot by creating a `data/.env` file and filling out the necessary par
     python main.py
     ```
     *(The `yt-dlp` executable will be downloaded automatically on the first run.)*
+
