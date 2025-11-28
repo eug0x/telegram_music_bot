@@ -59,11 +59,12 @@ If the first track is incorrect, the right button replaces the message buttons w
 
 ## 🛠️ Technical Highlights
 
-1.  **Zero-Conversion (Maximum Speed):** The bot leverages Telegram's ability to play various audio formats by simply **renaming the extension to `.mp3`**. This eliminates CPU-heavy transcoding (no FFMpeg dependency), ensuring **near-instantaneous processing**
+1.  **Zero-Conversion (Maximum Speed):** The bot leverages Telegram's ability to play various audio formats by simply **renaming the extension to `.mp3`**. This eliminates CPU-heavy transcoding (no FFMpeg dependency).
 
-2.  **Asynchronous Core:** Built on the high-performance `aiogram`
+2.  **Asynchronous Core:** Built on the high-performance `aiogram`.
 
-3.  **Self-Updating Dependency:** The **`yt-dlp`** core is automatically checked and updated every **24 hours** (`core/yt_dlp_manager.py`), ensuring the bot's download functionality never breaks
+3. **Self-Updating Dependency:** The **`yt-dlp`** core is automatically checked and updated upon **bot restart** if the file is older than the default **24 hours**. This ensures download functionality never breaks. The update time can be customized in `core/yt_dlp_manager.py` via the `EXPIRATION_SECONDS` variable.
+
 
 
 ## ⚙️ Customization (via `core/strings.py`)
@@ -74,7 +75,7 @@ The bot's interface and command structure can be fully customized by editing **`
 
 * **Interface Language:** Change the bot's entire language interface by translating variables like `STATUS_SEARCHING`, `ERROR_PREFIX`, and all button texts.
 
-* **Fun Facts/Taglines:** You can easily update the **list of random facts (`tagline`)** that appear at the bottom of the song information message. Add your own list of funny or interesting musical trivia to personalize the bot's output
+* **Fun Facts/Taglines:** You can easily update the **list of random facts (`tagline`)** that appear at the bottom of the song information message.
 
 ---
 
@@ -126,6 +127,7 @@ Set up your bot by creating a `data/.env` file and filling out the necessary par
 1.  **Clone the repository:**
     ```bash
     git clone https://github.com/eug0x/telegram_music_bot
+    
     cd FloppyMusicBot
     ```
 
