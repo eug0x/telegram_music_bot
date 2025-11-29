@@ -64,7 +64,7 @@ If the first track is incorrect, the right button replaces the message buttons w
 2.  **Asynchronous Core:** Built on the high-performance `aiogram`.
 
 3. **Self-Updating Dependency:** The **`yt-dlp`** core is automatically checked and updated upon **bot restart** if the file is older than the default **24 hours**.
-The update time can be customized in `core/yt_dlp_manager.py` via the `EXPIRATION_SECONDS` variable.
+The update time can be customized in `core/yt_dlp_update/yt_dlp_manager.py` via the `EXPIRATION_SECONDS` variable.
 
 
 
@@ -108,6 +108,7 @@ The bot's interface and command structure can be fully customized by editing **`
 │   │   songs_info.json     # Cache metadata file 
 │
 └───temp/                   # Temporary storage for active downloads & processing
+│              
 └───yt_dlp/                 
         yt-dlp         
 ```
@@ -181,3 +182,4 @@ Windows only for now
     python main.py
     ```
     *(The `yt-dlp` executable will be downloaded automatically on the first run.)*
+
