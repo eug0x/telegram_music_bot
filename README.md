@@ -10,7 +10,7 @@
 
 ## ⚡ Features Summary
 
-* **⚡ Fast Downloads:** Get your audio tracks delivered in just **5–10 seconds**.
+* **⚡ Fast Downloads:** Get your audio tracks delivered in just **5–15 seconds**.
 
 * **🧹 Clean Interface:** Bot auto-deletes the user command, keeping your chat tidy.
 
@@ -63,7 +63,8 @@ If the first track is incorrect, the right button replaces the message buttons w
 
 2.  **Asynchronous Core:** Built on the high-performance `aiogram`.
 
-3. **Self-Updating Dependency:** The **`yt-dlp`** core is automatically checked and updated upon **bot restart** if the file is older than the default **24 hours**. This ensures download functionality never breaks. The update time can be customized in `core/yt_dlp_manager.py` via the `EXPIRATION_SECONDS` variable.
+3. **Self-Updating Dependency:** The **`yt-dlp`** core is automatically checked and updated upon **bot restart** if the file is older than the default **24 hours**.
+The update time can be customized in `core/yt_dlp_manager.py` via the `EXPIRATION_SECONDS` variable.
 
 
 
@@ -81,26 +82,34 @@ The bot's interface and command structure can be fully customized by editing **`
 
 ### 📂 File Structure
 
+
+
 ```bash
-│   main.py                 # start
+│   main.py                 # Start 
 │
-├───core/                 
-│   │   config.py           # Config, limits, and logging.
-│   │   data_manager.py     # Data/cache storage.
-│   │   mu.py               # Telegram handlers / Business logic.
-│   │   strings.py          # Text messages.
-│   │   youtube_downloader.py # Download and search functions.
-│   │   yt_dlp_manager.py   # Handles yt-dlp update/download.
+├───core/                  
+│   │   config.py           # Config, limits, logging
+│   │   strings.py          # Text messages & constants
+│   │
+│   ├───handlers/          
+│   │   │   callbacks.py    # Button press handling 
+│   │   │   messages.py     # Text command handling
+│   │
+│   ├───services/         
+│   │   │   storage.py      # Cache management, song metadata
+│   │   │   youtube.py      # YouTube search, download, metadata
+│   │
+│   └───yt_dlp_update/     
+│       │   yt_dlp_manager.py # Checks & downloads yt-dlp executable
 │
 ├───data/                  
-│   │   .env                # Environment variables.
-│   │   bot.log             # Error log file.
-│   │   songs_info.json     # metadata 
+│   │   .env                # BOT_TOKEN, limits, etc.
+│   │   bot.log             # ERROR log file
+│   │   songs_info.json     # Cache metadata file 
 │
-├───temp/                   # for files being actively downloaded and processed.
-│
-└───yt_dlp/                
-        yt-dlp.exe          # yt-dlp executable.
+└───temp/                   # Temporary storage for active downloads & processing
+└───yt_dlp/                 
+        yt-dlp         
 ```
 
 
@@ -110,25 +119,53 @@ Set up your bot by creating a `data/.env` file and filling out the necessary par
 
 | Variable | Description | Default / Example |
 | :--- | :--- | :--- |
-| `BOT_TOKEN` | Your Telegram Bot Token from BotFather. | `YOUR_BOT_TOKEN` |
-| `ALLOWED_CHAT_ID` | Access control. Comma-separated list of Chat IDs. <br>• **`Empty`:** Allowed in ALL public chats.<br>• **`false`:** Restricted from all public chats. | `false` |
-| `ALLOW_PRIVATE_CHAT`| Enables/disables usage in private chats **(DMs)**. | `true` |
-| `MAX_FILE_SIZE_MB` | Maximum allowed file size for download (in MB). | `20` |
-| `MAX_SONG_DURATION_MIN`| Maximum allowed song duration (in minutes). | `15` |
-| `CONCURRENT_DOWNLOAD_LIMIT` | Max number of parallel downloads the bot can handle. (Controlled by asyncio.Semaphore). | `5` |
-| `ANTI_SPAM_INTERVAL` | Minimum pause between requests from one user (in seconds). | `15` |
-| `INFO_EXPIRATION_HOURS`| Cache expiration time for song data to manage memory. | `10` |
-| `BLOCKED_USER_IDS` | Comma-separated list of Telegram User IDs to block. | `1234567890,` |
+| `BOT_TOKEN` | Telegram Bot Token from BotFather. | `YOUR_BOT_TOKEN` |
+| `ALLOWED_CHAT_ID` | Access control: comma-separated list of Chat IDs. <br>• **Empty:** all public chats allowed<br>• **false:** restricted from all public chats | `-100123456789,` |
+| `ALLOW_PRIVATE_CHAT` | Enable/disable bot usage in private chats (DMs). | `true` |
+
+###  Limits
+| Variable | Description | Default / Example |
+| :--- | :--- | :--- |
+| `MAX_FILE_SIZE_MB` | Maximum allowed file size (MB). | `50` |
+| `MAX_SONG_DURATION_MIN` | Maximum allowed song duration (minutes). | `15` |
+| `CONCURRENT_DOWNLOAD_LIMIT` | Maximum simultaneous downloads (async semaphore). | `5` |
+
+### Security / Access
+
+| Variable | Description | Default / Example |
+| :--- | :--- | :--- |
+| `BLOCKED_USER_IDS` | Comma-separated Telegram User IDs to block. | `1234567890,` |
+
+---
+
+### Spam Protection
+
+| Variable | Description | Default / Example |
+| :--- | :--- | :--- |
+| `ANTI_SPAM_INTERVAL` | Minimum pause between requests from one user (seconds). | `15` |
+| `ANTI_SPAM_CALLBACK_INTERVAL` | Minimum pause between button callback actions from one user (seconds). | `1` |
+
+---
+
+### File Management / Cache
+
+| Variable | Description | Default / Example |
+| :--- | :--- | :--- |
+| `SONGS_INFO_FILE` | File used by `storage.py` for cached song metadata. | `songs_info.json` |
+| `INFO_EXPIRATION_HOURS` | Expiration time for song cache (hours). | `10` |
+
 
 ---
 
 ## 🚀 Installation & Run
 
+Windows only for now
+
 1.  **Clone the repository:**
     ```bash
     git clone https://github.com/eug0x/telegram_music_bot
     
-    cd FloppyMusicBot
+    cd telegram_music_bot
     ```
 
 2.  **Install dependencies:**
@@ -137,11 +174,10 @@ Set up your bot by creating a `data/.env` file and filling out the necessary par
     ```
 
 3.  **Setup Environment:**
-    Create and configure the `data/.env` file based on the table above.
+    Set up data/.env and put your BOT_TOKEN inside.
 
 4.  **Run the bot:**
     ```bash
     python main.py
     ```
     *(The `yt-dlp` executable will be downloaded automatically on the first run.)*
-
