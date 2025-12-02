@@ -217,4 +217,8 @@ async def show_song_info(cq: CallbackQuery):
 
     msg = strings.get_song_info_message(data, views, likes, dislikes)
 
+    MAX_ALERT_LENGTH = 200 
+    if len(msg) > MAX_ALERT_LENGTH:
+        msg = msg[:MAX_ALERT_LENGTH - 3] + "..." 
+
     await cq.answer(msg, show_alert=True)
