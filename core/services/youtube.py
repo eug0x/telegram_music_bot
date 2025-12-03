@@ -17,7 +17,13 @@ from core.config import (
 )
 
 
-GLOBAL_HTTP_SESSION = None
+_GLOBAL_HTTP_SESSION = None
+
+def get_http_session() -> aiohttp.ClientSession:
+    global _GLOBAL_HTTP_SESSION
+    if _GLOBAL_HTTP_SESSION is None:
+        _GLOBAL_HTTP_SESSION = aiohttp.ClientSession()
+    return _GLOBAL_HTTP_SESSION
 
 def cleanup_temp_files(base: str):
     for f in glob.glob(f"{base}.*"):
@@ -27,21 +33,42 @@ def cleanup_temp_files(base: str):
             logger.warning(f"Failed to remove temp file {f}: {e}")
 
 async def close_global_session():
-    await GLOBAL_HTTP_SESSION.close()
+    global _GLOBAL_HTTP_SESSION
+    if _GLOBAL_HTTP_SESSION:
+        await _GLOBAL_HTTP_SESSION.close()
+        _GLOBAL_HTTP_SESSION = None
 
 async def get_dislikes(video_id: str) -> Optional[int]:
     url = f"https://returnyoutubedislikeapi.com/votes?videoId={video_id}"
     try:
-        async with GLOBAL_HTTP_SESSION.get(url, timeout=3) as resp:
+        session = get_http_session()
+        
+        async with session.get(url, timeout=3) as resp:
+            
             if resp.status == 200:
                 data = await resp.json()
-                return data.get("dislikes")
+                
+                if data and isinstance(data, dict):
+                    return data.get("dislikes")
+                else:
+                    logger.warning(f"API returned non-dictionary data or None for {video_id}.")
+                    return None
+            else:
+                logger.warning(f"API status error for {video_id}: {resp.status}")
+                return None
+                
+    except AttributeError as e:
+        if "get" in str(e) and _GLOBAL_HTTP_SESSION is None:
+            logger.error("HTTP Session not initialized! GLOBAL_HTTP_SESSION is None.")
+            return None
+        raise
+        
     except aiohttp.ClientConnectorError as e:
         logger.warning(f"Failed to fetch dislikes for {video_id} (Connection Error): {e}")
     except asyncio.TimeoutError:
         logger.warning(f"Failed to fetch dislikes for {video_id} (Timeout)")
     except Exception as e:
-        logger.warning(f"Failed to fetch dislikes for {video_id}: {e}")
+        logger.warning(f"Unexpected error in get_dislikes for {video_id}: {e}")
     return None
 
 async def search_multiple(query: str) -> List[Dict[str, Any]]:

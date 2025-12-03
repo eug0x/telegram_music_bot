@@ -1,6 +1,7 @@
 import time
 import asyncio
 import os
+from typing import Dict, Any, Optional, Tuple
 from aiogram import F, types
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, InputMediaAudio, BufferedInputFile
 from aiogram.exceptions import TelegramBadRequest
@@ -8,8 +9,8 @@ from core import strings
 from core.config import dp, bot, logger, MAX_SONG_DURATION_SEC, ANTI_SPAM_CALLBACK_INTERVAL
 from core.services.youtube import search_multiple, download_by_url, cleanup_temp_files, get_dislikes
 from core.services.storage import (
-    song_data_storage, 
-    save_song_data, 
+    get_song_data, 
+    set_song_data, 
     format_number_dot, 
     user_last_request_time,
 )
@@ -31,16 +32,19 @@ def check_callback_spam(func):
 
     return wrapper
 
-def _check_access(cq: CallbackQuery, key: str):
-    entry = song_data_storage.get(f"info_{key}")
+def _check_access(cq: CallbackQuery, key: str) -> Optional[Tuple[Dict[str, Any], int]]:
+    data_storage = get_song_data(key) 
 
-    if not entry:
+    if not data_storage:
         asyncio.create_task(bot.answer_callback_query(
             callback_query_id=cq.id, 
             text=strings.INFO_EXPIRED, 
             show_alert=True
         ))
         return None
+        
+    entry = data_storage.get(f"info_{key}")
+    message_id = data_storage.get(f"msg_{key}")
 
     if cq.from_user.id != entry.get("requester"):
         asyncio.create_task(bot.answer_callback_query(
@@ -50,15 +54,16 @@ def _check_access(cq: CallbackQuery, key: str):
         ))
         return None
 
-    return entry
+    return entry, message_id
 
 @dp.callback_query(F.data.startswith("alt_"))
 @check_callback_spam
 async def show_alternatives(cq: CallbackQuery):
     key = cq.data[4:]
-    entry = _check_access(cq, key)
-    if not entry:
+    result = _check_access(cq, key)
+    if not result:
         return
+    entry, _ = result
 
     query = entry.get("query", "")
     if not query:
@@ -97,9 +102,10 @@ async def show_alternatives(cq: CallbackQuery):
 @check_callback_spam
 async def cancel_alt(cq: CallbackQuery):
     key = cq.data[7:]
-    entry = _check_access(cq, key)
-    if not entry:
+    result = _check_access(cq, key)
+    if not result:
         return
+    entry, _ = result
 
     sender_name = cq.from_user.full_name
     btn_text = strings.BUTTON_REQUESTER.format(sender_name)
@@ -119,9 +125,11 @@ async def choose_song(cq: CallbackQuery):
     parts = cq.data.split("_", 2)
     key = parts[1]
     video_id = parts[2]
-    entry = _check_access(cq, key)
-    if not entry:
+    
+    result = _check_access(cq, key)
+    if not result:
         return
+    entry, message_id = result
 
     base = None
     
@@ -178,7 +186,7 @@ async def choose_song(cq: CallbackQuery):
         await bot.edit_message_media(
             media=InputMediaAudio(media=audio, title=info.get("title"), performer=info.get("uploader"), thumbnail=thumbnail),
             chat_id=cq.message.chat.id,
-            message_id=song_data_storage.get(f"msg_{key}"),
+            message_id=message_id, 
             reply_markup=kb
         )
     except TelegramBadRequest as e:
@@ -187,7 +195,7 @@ async def choose_song(cq: CallbackQuery):
         await cq.answer(strings.FAILED_TO_UPDATE.format(str(e)), show_alert=True)
         return
 
-    song_data_storage[f"info_{key}"] = {
+    new_song_data = {
         **entry,
         "title": info.get("title"), "artist": info.get("uploader"), "thumb": thumb, 
         "file": file, "base": base, "url": url, "requester": cq.from_user.id,
@@ -195,7 +203,7 @@ async def choose_song(cq: CallbackQuery):
         "view_count": info.get("view_count"), "like_count": info.get("like_count"),
         "dislike_count": await get_dislikes(info.get("id")), "timestamp": time.time(),
     }
-    save_song_data(song_data_storage)
+    set_song_data(key, message_id, new_song_data)
     
     cleanup_temp_files(base)
     await cq.answer(strings.SONG_UPDATED)
@@ -204,12 +212,14 @@ async def choose_song(cq: CallbackQuery):
 @dp.callback_query(F.data.startswith("info_"))
 @check_callback_spam
 async def show_song_info(cq: CallbackQuery):
-    key = cq.data
-    data = song_data_storage.get(key)
+    key = cq.data[5:] 
+    data_storage = get_song_data(key)
 
-    if not data:
+    if not data_storage:
         await cq.answer(strings.INFO_EXPIRED, show_alert=True)
         return
+        
+    data = data_storage.get(cq.data) 
 
     views = format_number_dot(data.get("view_count"))
     likes = format_number_dot(data.get("like_count"))

@@ -48,11 +48,11 @@ INFO_EXPIRATION_HOURS: int = int(os.getenv('INFO_EXPIRATION_HOURS', 10))
 ANTI_SPAM_INTERVAL: int = int(os.getenv('ANTI_SPAM_INTERVAL'))
 ANTI_SPAM_CALLBACK_INTERVAL: float = float(os.getenv('ANTI_SPAM_CALLBACK_INTERVAL', 1.0))
 CONCURRENT_DOWNLOAD_LIMIT: int = int(os.getenv('CONCURRENT_DOWNLOAD_LIMIT', 5))
-SONGS_INFO_FILE: str = os.getenv('SONGS_INFO_FILE', 'songs_info.json')
+DB_FILE: str = os.getenv('DB_FILE', 'songs_cache.db')
 
 MAX_FILE_SIZE_BYTES: int = MAX_FILE_SIZE_MB * 1024 * 1024
 MAX_SONG_DURATION_SEC: int = MAX_SONG_DURATION_MIN * 60
-SONGS_INFO_PATH = os.path.join(DATA_PATH, SONGS_INFO_FILE)
+DB_PATH = os.path.join(DATA_PATH, DB_FILE) 
 
 BLOCKED_USER_IDS: List[int] = [int(i.strip()) for i in os.getenv('BLOCKED_USER_IDS', '').split(',') if i.strip()]
 

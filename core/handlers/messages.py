@@ -13,15 +13,20 @@ from core.config import (
 )
 from core.services.youtube import search_multiple, download_by_url, cleanup_temp_files, get_dislikes
 from core.services.storage import (
-    song_data_storage, user_last_request_time, 
-    save_song_data
+    user_last_request_time, 
+    set_song_data,
+    get_song_data
 )
 
 
 async def remove_not_right_button(sent_message, key, full_name):
     await asyncio.sleep(60)
     try:
-        current_entry = song_data_storage.get(f"info_{key}")
+        current_data = get_song_data(key)
+        if not current_data:
+            return
+
+        current_entry = current_data.get(f"info_{key}")
         if not current_entry:
             return
 
@@ -41,6 +46,7 @@ async def remove_not_right_button(sent_message, key, full_name):
 async def message_handler(message: types.Message):
     user_id = message.from_user.id
     base = None
+    key = None 
 
     if message.date.timestamp() < BOT_START_TIME: return
     is_private_chat = message.chat.type == 'private'
@@ -93,15 +99,15 @@ async def message_handler(message: types.Message):
 
         sender_name = message.from_user.full_name
         key = uuid.uuid4().hex[:8]
-        
-        song_data_storage[f"info_{key}"] = {
+
+        song_data = {
             "title": info.get("title"), "artist": info.get("uploader"), "thumb": thumb, 
             "file": file, "base": base, "query": query, "url": url, 
             "requester": user_id, "duration": info.get("duration"), "upload_date": info.get("upload_date"),
             "view_count": info.get("view_count"), "like_count": info.get("like_count"),
             "dislike_count": await get_dislikes(info.get("id")), "timestamp": time.time(),
         }
-        save_song_data(song_data_storage)
+        set_song_data(key, 0, song_data) 
 
         btn_text = strings.BUTTON_REQUESTER.format(sender_name)
         kb = InlineKeyboardMarkup(inline_keyboard=[
@@ -117,13 +123,13 @@ async def message_handler(message: types.Message):
             reply_to_message_id=message.reply_to_message.message_id if message.reply_to_message else None
         )
 
-        song_data_storage[f"msg_{key}"] = sent.message_id
-        save_song_data(song_data_storage)
+        set_song_data(key, sent.message_id, song_data)
         
         asyncio.create_task(remove_not_right_button(sent, key, message.from_user.full_name))
 
     except Exception as e:
-        await status.delete()
+        if status:
+            await status.delete()
         msg_error = strings.ERROR_PREFIX
         error_str = str(e)
         
