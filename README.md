@@ -6,7 +6,9 @@
 
 <br>
 
+Why bother with millions of unnecessary commands? If you want a song, you should be able to ask for it, instantly
 
+> No slashes, no complex commands, and no reliance on cumbersome song links
 
 ## ⚡ Features Summary
 
@@ -105,7 +107,7 @@ The bot's interface and command structure can be fully customized by editing **`
 ├───data/                  
 │   │   .env                # BOT_TOKEN, limits, etc.
 │   │   bot.log             # ERROR log file
-│   │   songs_info.json     # Cache metadata file 
+│   │   songs_cache.db      # Cache metadata file 
 │
 └───temp/                   # Temporary storage for active downloads & processing
 │              
@@ -182,4 +184,5 @@ Windows only for now
     python main.py
     ```
     *(The `yt-dlp` executable will be downloaded automatically on the first run.)*
+
 
