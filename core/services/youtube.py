@@ -6,6 +6,7 @@ import aiohttp
 from typing import List, Dict, Any, Optional
 
 from yt_dlp import YoutubeDL
+from yt_dlp.utils import DownloadError
 
 from core.config import (
     logger,
@@ -15,6 +16,9 @@ from core.config import (
     MAX_FILE_SIZE_BYTES
 )
 
+
+GLOBAL_HTTP_SESSION = None
+
 def cleanup_temp_files(base: str):
     for f in glob.glob(f"{base}.*"):
         try:
@@ -22,17 +26,23 @@ def cleanup_temp_files(base: str):
         except Exception as e:
             logger.warning(f"Failed to remove temp file {f}: {e}")
 
+async def close_global_session():
+    await GLOBAL_HTTP_SESSION.close()
+
 async def get_dislikes(video_id: str) -> Optional[int]:
     url = f"https://returnyoutubedislikeapi.com/votes?videoId={video_id}"
     try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url, timeout=3) as resp:
-                if resp.status == 200:
-                    data = await resp.json()
-                    return data.get("dislikes")
+        async with GLOBAL_HTTP_SESSION.get(url, timeout=3) as resp:
+            if resp.status == 200:
+                data = await resp.json()
+                return data.get("dislikes")
+    except aiohttp.ClientConnectorError as e:
+        logger.warning(f"Failed to fetch dislikes for {video_id} (Connection Error): {e}")
+    except asyncio.TimeoutError:
+        logger.warning(f"Failed to fetch dislikes for {video_id} (Timeout)")
     except Exception as e:
         logger.warning(f"Failed to fetch dislikes for {video_id}: {e}")
-        return None
+    return None
 
 async def search_multiple(query: str) -> List[Dict[str, Any]]:
     ydl_opts = {
@@ -45,8 +55,15 @@ async def search_multiple(query: str) -> List[Dict[str, Any]]:
     }
     def search():
         with YoutubeDL(ydl_opts) as ydl:
-            result = ydl.extract_info(f"ytsearch10:{query}", download=False) 
-            return result.get("entries", [])
+            try:
+                result = ydl.extract_info(f"ytsearch10:{query}", download=False) 
+                return result.get("entries", [])
+            except DownloadError:
+                logger.error(f"yt-dlp search failed for query: {query}")
+                return []
+            except Exception as e:
+                logger.error(f"Unexpected error during search: {e}")
+                raise
     return await asyncio.to_thread(search)
 
 
@@ -67,6 +84,9 @@ async def download_by_url(url: str):
         with YoutubeDL(info_opts) as ydl:
             try:
                 info = ydl.extract_info(url, download=False)
+            except DownloadError as e:
+                logger.error(f"yt-dlp pre-check failed for {url}: {e}")
+                raise Exception("YT_DOWNLOAD_FAILED")
             except Exception:
                 raise
 
@@ -91,10 +111,16 @@ async def download_by_url(url: str):
         }
 
         with YoutubeDL(download_opts) as ydl:
-            info = ydl.extract_info(url, download=True)
-            base = os.path.splitext(ydl.prepare_filename(info))[0]
-            audio_file = None
+            try:
+                info = ydl.extract_info(url, download=True)
+                base = os.path.splitext(ydl.prepare_filename(info))[0]
+            except DownloadError as e:
+                logger.error(f"yt-dlp download failed for {url}: {e}")
+                raise Exception("YT_DOWNLOAD_FAILED")
+            except Exception:
+                raise
 
+            audio_file = None
             for ext in ['mp3', 'm4a', 'webm', 'opus', 'ogg']:
                 candidate = f"{base}.{ext}"
                 if os.path.exists(candidate):
@@ -119,6 +145,14 @@ async def download_by_url(url: str):
                 cleanup_temp_files(base)
                 raise Exception("TOO_LARGE_POSTCHECK")
 
+            temp_files_to_keep = [audio_file, thumb]
+            for f in glob.glob(f"{base}.*"):
+                if f not in temp_files_to_keep:
+                    try:
+                        os.remove(f)
+                    except Exception as e:
+                        logger.warning(f"Failed to remove leftover temp file {f}: {e}")
+                        
             return info, audio_file, thumb, base
 
     try:
