@@ -6,8 +6,6 @@
 
 <br>
 
-Why bother with millions of unnecessary commands? If you want a song, you should be able to ask for it, instantly
-
 > No slashes, no complex commands, and no reliance on cumbersome song links
 
 ## ⚡ Features Summary
@@ -65,7 +63,7 @@ If the first track is incorrect, the right button replaces the message buttons w
 
 2.  **Asynchronous Core:** Built on the high-performance `aiogram`.
 
-3. **Self-Updating Dependency:** The **`yt-dlp`** core is automatically checked and updated upon **bot restart** if the file is older than the default **24 hours**.
+3. (Windows only) **Self-Updating Dependency:** The **`yt-dlp`** core is automatically checked and updated upon **bot restart** if the file is older than the default **24 hours**.
 The update time can be customized in `core/yt_dlp_update/yt_dlp_manager.py` via the `EXPIRATION_SECONDS` variable.
 
 
@@ -101,7 +99,7 @@ The bot's interface and command structure can be fully customized by editing **`
 │   │   │   storage.py      # Cache management, song metadata
 │   │   │   youtube.py      # YouTube search, download, metadata
 │   │
-│   └───yt_dlp_update/     
+│   └───yt_dlp_update/      # (Windows only)
 │       │   yt_dlp_manager.py # Checks & downloads yt-dlp executable
 │
 ├───data/                  
@@ -161,13 +159,45 @@ Set up your bot by creating a `data/.env` file and filling out the necessary par
 ---
 
 ## 🚀 Installation & Run
+### Linux
+1.  **Clone the repository and navigate to the Linux folder:**
+    ```bash
+    git clone https://github.com/eug0x/telegram_music_bot
+    cd telegram_music_bot/telegram_bot_linux
+    ```
 
-Windows only for now
+2.  **Install dependencies:**
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+3.  **Setup Environment:**
+    ```bash
+    cd data
+    mv env .env
+    nano .env
+    ```
+    - In the opened `.env` file, add your bot token:
+    ```text
+    BOT_TOKEN=14566BLABLABLA
+    ```
+    - Save and exit (`Ctrl+O`, `Enter`, `Ctrl+X`).
+     ```bash
+    cd ..
+    ```
+
+4.  **Run the bot:**
+    ```bash
+    python main.py
+    ```
+
+---
+
+### Windows
 
 1.  **Clone the repository:**
     ```bash
     git clone https://github.com/eug0x/telegram_music_bot
-    
     cd telegram_music_bot
     ```
 
