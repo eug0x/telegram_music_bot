@@ -7,7 +7,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-YT_DLP_DIR = 'yt_dlp'
+YT_DLP_DIR = 'yt_dlp_bin'
 EXPIRATION_SECONDS = 24 * 3600
 
 if sys.platform.startswith("win"):
@@ -72,3 +72,4 @@ def initialize() -> str:
         return YT_DLP_PATH
     else:
         raise RuntimeError("Failed to ensure yt-dlp executable is ready. Cannot run the bot.")
+
