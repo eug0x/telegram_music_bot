@@ -11,6 +11,9 @@
 ## ⚡ Features Summary
 
 * **⚡ Fast Downloads:** Get your audio tracks delivered in just **5–15 seconds**.
+* **📥 Inline Search (v1.1.0):** Search tracks instantly within the bot's internal databases without downloading from YouTube.
+* **📦 Self-Updating Music Archive (v1.1.0):** Tracks sent to the storage channel are automatically indexed, de-duplicated, and ready for instant reuse.
+
 
 * **🧹 Clean Interface:** Bot auto-deletes the user command, keeping your chat tidy.
 
@@ -54,6 +57,13 @@ If the first track is incorrect, the right button replaces the message buttons w
     <img src="static/3.png" alt="Screenshot 3: Alternative Search Results List" style="max-width: 400px; border-radius: 8px;">
 </p>
 
+### 4. Inline Mode 
+
+Use Telegram inline mode anywhere:
+
+<p align="center">
+    <img src="static/4.png" alt="Screenshot 3: Alternative Search Results List" style="max-width: 400px; border-radius: 8px;">
+</p>
 
 
 
@@ -65,6 +75,25 @@ If the first track is incorrect, the right button replaces the message buttons w
 
 3. (Windows only) **Self-Updating Dependency:** The **`yt-dlp`** core is automatically checked and updated upon **bot restart** if the file is older than the default **24 hours**.
 The update time can be customized in `core/yt_dlp_update/yt_dlp_manager.py` via the `EXPIRATION_SECONDS` variable.
+
+4. **Persistent Audio Reuse Architecture (NEW):**  
+   The bot no longer relies solely on YouTube downloads.  
+   Every successfully delivered track is **persistently indexed and reusable**.
+
+5. **Separated Audio Databases (Key-Based Storage):**  
+   Audio references are stored as **Telegram `file_id` keys**, not raw files.
+
+   - `music_channel.db` — primary, curated storage populated from a private channel  
+     • MP3-only validation  
+     • Duplicate and near-duplicate detection  
+     • Acts as a long-term, clean audio source
+
+   - `music_chat.db` — dynamic cache populated from user-triggered downloads  
+     • Automatically filled on `/music` usage  
+     • Enables instant re-sending without re-downloading  
+     • Grows naturally with real usage
+
+`The music command searches for and downloads tracks directly from YouTube, while inline mode searches only within the bot’s internal databases and does not trigger external downloads.`
 
 
 
@@ -85,32 +114,41 @@ The bot's interface and command structure can be fully customized by editing **`
 
 
 ```bash
-│   main.py                 # Start 
+│   main.py                   # Start 
 │
-├───core/                  
-│   │   config.py           # Config, limits, logging
-│   │   strings.py          # Text messages & constants
+├───core/
+│   │   config.py             # Config, limits, logging
+│   │   strings.py            # Text messages & constants
 │   │
-│   ├───handlers/          
-│   │   │   callbacks.py    # Button press handling 
-│   │   │   messages.py     # Text command handling
+│   ├───handlers/
+│   │   │   callbacks.py      # Button press handling 
+│   │   │   messages.py       # Text command handling
+│   │   │   channel_posts.py  # Auto-indexing from storage channel
+│   │   │   inline_mode.py    # Inline query aggregation
 │   │
-│   ├───services/         
-│   │   │   storage.py      # Cache management, song metadata
-│   │   │   youtube.py      # YouTube search, download, metadata
+│   ├───services/
+│   │   │   storage.py        # Cache management, song metadata
+│   │   │   youtube.py        # YouTube search, download, metadata
+│   │   │ 
+│   │   └───inline_search/
+│   │           database.py       # SQLite CRUD (aiosqlite)
+│   │           fts5_search.py    # Full-text search
+│   │           rapidfuzz_search.py # Fuzzy matching
 │   │
-│   └───yt_dlp_update/      # (Windows only)
-│       │   yt_dlp_manager.py # Checks & downloads yt-dlp executable
+│   └───yt_dlp_update/        # (windows only)
+│           yt_dlp_manager.py # yt-dlp auto-updater 
 │
-├───data/                  
-│   │   .env                # BOT_TOKEN, limits, etc.
-│   │   bot.log             # ERROR log file
-│   │   songs_cache.db      # Cache metadata file 
+├───data/
+│   │   .env                  # BOT_TOKEN, limits, etc. 
+│   │   bot.log               # ERROR log file
+│   │   songs_cache.db        # Cache metadata file 
+│   │   music_channel.db      # Primary storage channel index; holds persistent track keys
+│   │   music_chat.db         # Dynamic user/download cache; stores track keys from chats
+│   │
+│   └───backup/
 │
-└───temp/                   # Temporary storage for active downloads & processing
-│              
-└───yt_dlp/                 
-        yt-dlp         
+└───yt_dlp/                   # (windows only)
+        yt-dlp.exe     
 ```
 
 
@@ -137,7 +175,7 @@ Set up your bot by creating a `data/.env` file and filling out the necessary par
 | :--- | :--- | :--- |
 | `BLOCKED_USER_IDS` | Comma-separated Telegram User IDs to block. | `1234567890,` |
 
----
+
 
 ### Spam Protection
 
@@ -146,7 +184,7 @@ Set up your bot by creating a `data/.env` file and filling out the necessary par
 | `ANTI_SPAM_INTERVAL` | Minimum pause between requests from one user (seconds). | `15` |
 | `ANTI_SPAM_CALLBACK_INTERVAL` | Minimum pause between button callback actions from one user (seconds). | `1` |
 
----
+
 
 ### File Management / Cache
 
@@ -154,11 +192,17 @@ Set up your bot by creating a `data/.env` file and filling out the necessary par
 | :--- | :--- | :--- |
 | `SONGS_INFO_FILE` | File used by `storage.py` for cached song metadata. | `songs_info.json` |
 | `INFO_EXPIRATION_HOURS` | Expiration time for song cache (hours). | `10` |
-
-
----
+| `MUSIC_STORAGE_CHANNEL_ID` | Private channel ID for storing/indexing music. Leave empty to disable. | `-1001234567890` |
 
 ## 🚀 Installation & Run
+### Requirements:
+- Python 3.10+
+### Quick Setup for MUSIC_STORAGE_CHANNEL_ID
+`optional`
+1. Create a private channel and give your bot admin rights.  
+2. Set `MUSIC_STORAGE_CHANNEL_ID` to the channel's ID in `.env`.  
+3. Send or forward music to this channel for persistent indexing.
+
 ### Linux
 1.  **Clone the repository and navigate to the Linux folder:**
     ```bash
@@ -214,5 +258,4 @@ Set up your bot by creating a `data/.env` file and filling out the necessary par
     python main.py
     ```
     *(The `yt-dlp` executable will be downloaded automatically on the first run.)*
-
 

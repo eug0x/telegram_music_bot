@@ -20,6 +20,7 @@ SONG_UPDATED = "Song updated."
 INFO_EXPIRED = "Information expired."
 FAILED_TO_UPDATE = "Failed to update message: {}"
 
+
 def get_song_info_message(data, views, likes, dislikes):
     """Generates the formatted song information message."""
     

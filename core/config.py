@@ -4,10 +4,11 @@ import logging
 import time
 from dotenv import load_dotenv
 from typing import List
-from aiogram import Bot, Dispatcher
+from aiogram import Bot, Dispatcher, Router
 from aiogram.client.default import DefaultBotProperties
 from core.yt_dlp_update import yt_dlp_manager
 from logging.handlers import RotatingFileHandler
+
 import sys
 
 DATA_PATH = "data"
@@ -41,6 +42,17 @@ logger = logging.getLogger(__name__)
 
 BOT_TOKEN: str = os.getenv('BOT_TOKEN')
 ALLOWED_CHAT_RAW = os.getenv('ALLOWED_CHAT_ID', '')
+
+# ИСПРАВЛЕНИЕ: Безопасное считывание MUSIC_CHANNEL_ID
+music_channel_id_raw = os.getenv('MUSIC_CHANNEL_ID', '').strip()
+CHANNEL_ID: int = int(music_channel_id_raw) if music_channel_id_raw else -1 
+
+# ИСПРАВЛЕНИЕ: Безопасное считывание MUSIC_STORAGE_CHANNEL_ID
+storage_channel_id_raw = os.getenv('MUSIC_STORAGE_CHANNEL_ID', '').strip()
+MUSIC_STORAGE_CHANNEL_ID: int = int(storage_channel_id_raw) if storage_channel_id_raw else -1
+
+FUZZY_DUPLICATE_THRESHOLD: int = int(os.getenv('FUZZY_DUPLICATE_THRESHOLD', 90))
+
 MAX_FILE_SIZE_MB: int = int(os.getenv('MAX_FILE_SIZE_MB'))
 MAX_SONG_DURATION_MIN: int = int(os.getenv('MAX_SONG_DURATION_MIN', 15))
 ALLOW_PRIVATE_CHAT: bool = os.getenv('ALLOW_PRIVATE_CHAT', 'false').lower() == 'true'
@@ -49,6 +61,11 @@ ANTI_SPAM_INTERVAL: int = int(os.getenv('ANTI_SPAM_INTERVAL'))
 ANTI_SPAM_CALLBACK_INTERVAL: float = float(os.getenv('ANTI_SPAM_CALLBACK_INTERVAL', 1.0))
 CONCURRENT_DOWNLOAD_LIMIT: int = int(os.getenv('CONCURRENT_DOWNLOAD_LIMIT', 5))
 DB_FILE: str = os.getenv('DB_FILE', 'songs_cache.db')
+ENABLE_INLINE_SEARCH = True 
+
+CHAT_DB_PATH = os.path.join(DATA_PATH, "music_chat.db")
+CHANNEL_DB_PATH = os.path.join(DATA_PATH, "music_channel.db")
+DELETED_SONGS_LOG_PATH = os.path.join(DATA_PATH, "deleted_songs.log")
 
 MAX_FILE_SIZE_BYTES: int = MAX_FILE_SIZE_MB * 1024 * 1024
 MAX_SONG_DURATION_SEC: int = MAX_SONG_DURATION_MIN * 60
@@ -81,6 +98,7 @@ except RuntimeError as e:
 
 bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode="HTML"))
 dp = Dispatcher()
+channel_router = Router()
 
 download_semaphore = asyncio.Semaphore(CONCURRENT_DOWNLOAD_LIMIT)
 dp['download_semaphore'] = download_semaphore

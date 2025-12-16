@@ -72,4 +72,3 @@ def initialize() -> str:
         return YT_DLP_PATH
     else:
         raise RuntimeError("Failed to ensure yt-dlp executable is ready. Cannot run the bot.")
-
