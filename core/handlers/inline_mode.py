@@ -16,7 +16,6 @@ router = Router()
 logger = logging.getLogger(__name__)
 
 async def combine_search_results(query: str):
-    
     tasks = [
         search_fts(query, Config.CHANNEL_DB_PATH, limit=50),
         search_fts(query, Config.CHAT_DB_PATH, limit=50),
@@ -54,6 +53,10 @@ async def combine_search_results(query: str):
 
 @router.inline_query()
 async def inline_music_search(inline_query: InlineQuery, bot: Bot):
+    if inline_query.from_user.id in Config.BLOCKED_USER_IDS:
+        await inline_query.answer([], is_personal=True, cache_time=300)
+        return
+
     text = (inline_query.query or "").strip()
     if not text:
         await inline_query.answer([], is_personal=False, cache_time=5)

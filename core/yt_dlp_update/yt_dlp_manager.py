@@ -7,7 +7,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-YT_DLP_DIR = 'yt_dlp_bin'
+YT_DLP_DIR = 'yt_dlp'
 EXPIRATION_SECONDS = 24 * 3600
 
 if sys.platform.startswith("win"):
