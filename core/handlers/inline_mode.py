@@ -47,7 +47,13 @@ async def combine_search_results(query: str):
                 unique_songs[unique_key] = song_data
                 final_list.append(song_data)
     
-    final_list.sort(key=lambda x: x['is_cached'], reverse=True)
+    final_list.sort(
+        key=lambda x: (
+            x['is_cached'], 
+            1 if x['db_name'] == Config.CHAT_DB_PATH else 0
+        ), 
+        reverse=True
+    )
     
     return final_list[:50]
 
