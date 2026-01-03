@@ -76,25 +76,19 @@ Use Telegram inline mode anywhere:
 3. (Windows only) **Self-Updating Dependency:** The **`yt-dlp`** core is automatically checked and updated upon **bot restart** if the file is older than the default **24 hours**.
 The update time can be customized in `core/yt_dlp_update/yt_dlp_manager.py` via the `EXPIRATION_SECONDS` variable.
 
-4. **Persistent Audio Reuse Architecture (NEW):**  
-   The bot no longer relies solely on YouTube downloads.  
-   Every successfully delivered track is **persistently indexed and reusable**.
-
-5. **Separated Audio Databases (Key-Based Storage):**  
+4. **Separated Audio Databases (Key-Based Storage):**  
    Audio references are stored as **Telegram `file_id` keys**, not raw files.
 
    - `music_channel.db` — primary, curated storage populated from a private channel  
-     • MP3-only validation  
+     • MP3-only validation
+     • It’s filled manually (by uploading songs to the channel)
      • Duplicate and near-duplicate detection  
      • Acts as a long-term, clean audio source
 
    - `music_chat.db` — dynamic cache populated from user-triggered downloads  
-     • Automatically filled on `/music` usage  
-     • Enables instant re-sending without re-downloading  
+     • Automatically filled on `music` usage  
+     • It uses the chats it’s added to as sources for audio files
      • Grows naturally with real usage
-
-`The music command searches for and downloads tracks directly from YouTube, while inline mode searches only within the bot’s internal databases and does not trigger external downloads.`
-
 
 
 ## ⚙️ Customization (via `core/strings.py`)
@@ -144,8 +138,7 @@ The bot's interface and command structure can be fully customized by editing **`
 │   │   songs_cache.db        # Cache metadata file 
 │   │   music_channel.db      # Primary storage channel index; holds persistent track keys
 │   │   music_chat.db         # Dynamic user/download cache; stores track keys from chats
-│   │
-│   └───backup/
+│   
 │
 └───yt_dlp/                   # (windows only)
         yt-dlp.exe     
@@ -258,4 +251,5 @@ Set up your bot by creating a `data/.env` file and filling out the necessary par
     python main.py
     ```
     *(The `yt-dlp` executable will be downloaded automatically on the first run.)*
+
 
