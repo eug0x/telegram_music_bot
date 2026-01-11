@@ -73,8 +73,7 @@ Use Telegram inline mode anywhere:
 
 2.  **Asynchronous Core:** Built on the high-performance `aiogram`.
 
-3. (Windows only) **Self-Updating Dependency:** The **`yt-dlp`** core is automatically checked and updated upon **bot restart** if the file is older than the default **24 hours**.
-The update time can be customized in `core/yt_dlp_update/yt_dlp_manager.py` via the `EXPIRATION_SECONDS` variable.
+3. The yt-dlp core is automatically checked and updated upon bot restart (default 24h). Update frequency is customizable in core/yt_dlp_update/yt_dlp_manager.py via EXPIRATION_SECONDS.
 
 4. **Separated Audio Databases (Key-Based Storage):**  
    Audio references are stored as **Telegram `file_id` keys**, not raw files.
@@ -129,7 +128,7 @@ The bot's interface and command structure can be fully customized by editing **`
 │   │           fts5_search.py    # Full-text search
 │   │           rapidfuzz_search.py # Fuzzy matching
 │   │
-│   └───yt_dlp_update/        # (windows only)
+│   └───yt_dlp_update/        
 │           yt_dlp_manager.py # yt-dlp auto-updater 
 │
 ├───data/
@@ -137,11 +136,7 @@ The bot's interface and command structure can be fully customized by editing **`
 │   │   bot.log               # ERROR log file
 │   │   songs_cache.db        # Cache metadata file 
 │   │   music_channel.db      # Primary storage channel index; holds persistent track keys
-│   │   music_chat.db         # Dynamic user/download cache; stores track keys from chats
-│   
-│
-└───yt_dlp/                   # (windows only)
-        yt-dlp.exe     
+│   │   music_chat.db         # Dynamic user/download cache; stores track keys from chats  
 ```
 
 
@@ -250,6 +245,6 @@ Set up your bot by creating a `data/.env` file and filling out the necessary par
     ```bash
     python main.py
     ```
-    *(The `yt-dlp` executable will be downloaded automatically on the first run.)*
+
 
 
