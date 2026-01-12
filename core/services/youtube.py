@@ -1,21 +1,20 @@
+# core\services\youtube.py
+
 import asyncio
 import os
 import uuid
 import glob
 import aiohttp
 from typing import List, Dict, Any, Optional
-
 from yt_dlp import YoutubeDL
 from yt_dlp.utils import DownloadError
 
 from core.config import (
     logger,
     TEMP_PATH,
-    YDL_EXECUTABLE_PATH,
     MAX_SONG_DURATION_SEC,
     MAX_FILE_SIZE_BYTES
 )
-
 
 _GLOBAL_HTTP_SESSION = None
 
@@ -78,10 +77,11 @@ async def search_multiple(query: str) -> List[Dict[str, Any]]:
         'noplaylist': True,
         'extract_flat': True,
         'extractor_args': {'youtube': {'client': 'android'}},
-        'executable': YDL_EXECUTABLE_PATH, 
+        'encoding': 'utf-8',
+        'postprocessors': [],
     }
     def search():
-        with YoutubeDL(ydl_opts) as ydl:
+        with YoutubeDL(ydl_opts) as ydl: # type: ignore
             try:
                 result = ydl.extract_info(f"ytsearch10:{query}", download=False) 
                 return result.get("entries", [])
@@ -102,13 +102,15 @@ async def download_by_url(url: str):
         'extractor_args': {'youtube': {'client': 'android'}},
         'no_warnings': True,
         'skip_download': True,
-        'executable': YDL_EXECUTABLE_PATH,
+        'encoding': 'utf-8',
+        'postprocessors': [],
     }
 
-    def pre_check_and_download():
-        base = None
+    base = None
 
-        with YoutubeDL(info_opts) as ydl:
+    def pre_check_and_download():
+
+        with YoutubeDL(info_opts) as ydl: # type: ignore
             try:
                 info = ydl.extract_info(url, download=False)
             except DownloadError as e:
@@ -117,7 +119,8 @@ async def download_by_url(url: str):
             except Exception:
                 raise
 
-            if info.get("duration") and info['duration'] > MAX_SONG_DURATION_SEC:
+            duration = info.get("duration")
+            if duration is not None and duration > MAX_SONG_DURATION_SEC:
                 raise Exception("LONG_AUDIO")
 
             filesize_estimate = info.get('filesize') or info.get('filesize_approx')
@@ -134,10 +137,13 @@ async def download_by_url(url: str):
             'writethumbnail': True,
             'extractor_args': {'youtube': {'client': 'android'}},
             'no_warnings': True,
-            'executable': YDL_EXECUTABLE_PATH,
+            'encoding': 'utf-8',
+            'postprocessors': [
+                {'key': 'FFmpegMetadata'}, 
+            ]
         }
 
-        with YoutubeDL(download_opts) as ydl:
+        with YoutubeDL(download_opts) as ydl: # type: ignore
             try:
                 info = ydl.extract_info(url, download=True)
                 base = os.path.splitext(ydl.prepare_filename(info))[0]
@@ -185,6 +191,5 @@ async def download_by_url(url: str):
     try:
         return await asyncio.to_thread(pre_check_and_download)
     except Exception as e:
-        if 'base' in locals() and base:
-             cleanup_temp_files(base)
+        logger.warning(f"Error during download for {url}: {e}. Attempting cleanup if base is known.")
         raise e

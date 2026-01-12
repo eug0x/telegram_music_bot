@@ -1,74 +1,82 @@
 import os
-import sys
-import requests
 import time
-import shutil
 import logging
+import subprocess
+import sys
 
 logger = logging.getLogger(__name__)
 
-YT_DLP_DIR = 'yt_dlp'
-EXPIRATION_SECONDS = 24 * 3600
+EXPIRATION_SECONDS = 24 * 3600 
 
-if sys.platform.startswith("win"):
-    YT_DLP_EXE_NAME = 'yt-dlp.exe'
-    DOWNLOAD_URL = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe"
-else:
-    YT_DLP_EXE_NAME = 'yt-dlp'
-    DOWNLOAD_URL = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp"
+LAST_UPDATE_TIMESTAMP_FILE = 'data/yt_dlp_last_update.txt'
 
-YT_DLP_PATH = os.path.join(YT_DLP_DIR, YT_DLP_EXE_NAME)
-
-def get_exe_path() -> str:
-    return YT_DLP_PATH
-
-def _download_yt_dlp() -> bool:
-    os.makedirs(YT_DLP_DIR, exist_ok=True)
-    logger.info(f"Downloading latest yt-dlp from: {DOWNLOAD_URL}")
-    temp_path = YT_DLP_PATH + ".tmp"
-
+def _update_yt_dlp_package() -> bool:
+    logger.info("Attempting to update yt-dlp via pip...")
     try:
-        with requests.get(DOWNLOAD_URL, stream=True, timeout=30) as r:
-            r.raise_for_status()
-            with open(temp_path, 'wb') as f:
-                shutil.copyfileobj(r.raw, f)
-
-        os.replace(temp_path, YT_DLP_PATH)
-
-        if not sys.platform.startswith("win"):
-            os.chmod(YT_DLP_PATH, 0o755)
-
-        logger.info(f"Successfully downloaded and saved: {YT_DLP_PATH}")
+        command = [sys.executable, "-m", "pip", "install", "--upgrade", "yt-dlp"]
+        
+        result = subprocess.run(
+            command,
+            check=True,
+            capture_output=True,
+            text=True
+        )
+        logger.info(f"yt-dlp package updated successfully: {result.stdout}")
+        
+        try:
+            with open(LAST_UPDATE_TIMESTAMP_FILE, 'w') as f:
+                f.write(str(int(time.time())))
+            logger.debug(f"Updated timestamp file: {LAST_UPDATE_TIMESTAMP_FILE}")
+        except Exception as e:
+            logger.error(f"Failed to write update timestamp: {e}")
+            
         return True
-    except requests.exceptions.RequestException as e:
-        logger.error(f"Failed to download yt-dlp: {e}")
+    except subprocess.CalledProcessError as e:
+        logger.error(f"Failed to update yt-dlp via pip. Stderr: {e.stderr} Stdout: {e.stdout}")
+        return False
+    except FileNotFoundError:
+        logger.error("pip command not found. Ensure pip is correctly installed.")
+        return False
     except Exception as e:
-        logger.error(f"Error during file saving/renaming: {e}")
-    finally:
-        if os.path.exists(temp_path):
-            os.remove(temp_path)
-    return False
+        logger.error(f"An unexpected error occurred during pip update: {e}")
+        return False
 
-def check_and_update() -> bool:
-    logger.info("Starting yt-dlp executable check...")
-    if not os.path.exists(YT_DLP_PATH):
-        logger.warning(f"Executable not found at {YT_DLP_PATH}. Attempting download.")
-        return _download_yt_dlp()
-
+def check_and_update_needed() -> bool:
     try:
-        mod_time = os.path.getmtime(YT_DLP_PATH)
-        current_time = time.time()
-        if current_time - mod_time > EXPIRATION_SECONDS:
-            logger.info(f"Executable is older than {EXPIRATION_SECONDS // 3600} hours. Attempting update.")
-            return _download_yt_dlp()
-        logger.info("Executable is up-to-date and ready.")
+        if not os.path.exists(LAST_UPDATE_TIMESTAMP_FILE):
+            logger.info("Update timestamp file not found. Update is needed.")
+            return True
+        
+        with open(LAST_UPDATE_TIMESTAMP_FILE, 'r') as f:
+            last_update_time = int(f.read().strip())
+        
+        current_time = int(time.time())
+        if current_time - last_update_time > EXPIRATION_SECONDS:
+            logger.info(f"Last update was over {EXPIRATION_SECONDS // 3600} hours ago. Update is needed.")
+            return True
+        
+        logger.info("yt-dlp check interval not yet expired. No update needed.")
+        return False
+    except Exception as e:
+        logger.warning(f"Error checking update timestamp, forcing update attempt: {e}")
         return True
-    except OSError as e:
-        logger.error(f"Error accessing file system for {YT_DLP_PATH}: {e}")
-        return _download_yt_dlp()
 
-def initialize() -> str:
-    if check_and_update():
-        return YT_DLP_PATH
-    else:
-        raise RuntimeError("Failed to ensure yt-dlp executable is ready. Cannot run the bot.")
+def initialize() -> bool:
+    if check_and_update_needed():
+        _update_yt_dlp_package() 
+        
+    try:
+        import yt_dlp
+        logger.info("yt-dlp package is available.")
+        return True
+    except ImportError:
+        logger.error("The 'yt-dlp' package is not installed and cannot be imported.")
+        logger.info("Attempting one final installation of yt-dlp since import failed...")
+        if _update_yt_dlp_package():
+             try:
+                 import yt_dlp 
+                 return True
+             except ImportError:
+                 pass
+             
+        raise RuntimeError("Failed to ensure yt-dlp package is ready. Cannot run the bot.")
