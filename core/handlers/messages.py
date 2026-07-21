@@ -35,7 +35,7 @@ if ENABLE_INLINE_SEARCH:
 async def remove_not_right_button(sent_message, key, full_name):
     await asyncio.sleep(60)
     try:
-        current_data = get_song_data(key)
+        current_data = await get_song_data(key) 
         if not current_data:
             return
 
@@ -51,13 +51,19 @@ async def remove_not_right_button(sent_message, key, full_name):
             message_id=sent_message.message_id,
             reply_markup=current_kb
         )
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug(f"Failed to update reply markup for {key}: {e}")
 
 
 @dp.message()
 async def message_handler(message: types.Message):
+    
+    if not message.from_user:
+        return
+
     user_id = message.from_user.id
+    sender_name = message.from_user.full_name
+
     base = None
     key = None
     status = None
@@ -90,8 +96,8 @@ async def message_handler(message: types.Message):
 
     try:
         await message.delete()
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug(f"Could not delete user message: {e}")
 
     status = await message.answer(strings.STATUS_SEARCHING)
 
@@ -127,7 +133,7 @@ async def message_handler(message: types.Message):
             "view_count": info.get("view_count"), "like_count": info.get("like_count"),
             "dislike_count": await get_dislikes(info.get("id")), "timestamp": time.time(),
         }
-        set_song_data(key, 0, song_data)
+        await set_song_data(key, 0, song_data)
 
         btn_text = strings.BUTTON_REQUESTER.format(sender_name)
         kb = InlineKeyboardMarkup(inline_keyboard=[
@@ -149,7 +155,7 @@ async def message_handler(message: types.Message):
             except Exception as e:
                 logger.error(f"Failed to save song to DB: {e}")
 
-        set_song_data(key, sent.message_id, song_data)
+        await set_song_data(key, sent.message_id, song_data)
 
         asyncio.create_task(remove_not_right_button(sent, key, message.from_user.full_name))
 
@@ -172,14 +178,13 @@ async def message_handler(message: types.Message):
         error_str = str(e)
         if "LONG_AUDIO" in error_str:
              msg_error = strings.ERROR_PREFIX + strings.ERROR_LONG_AUDIO
+        elif "SEARCH_ALL_TOO_LONG" in error_str:
+             msg_error = strings.ERROR_PREFIX + strings.ERROR_SEARCH_ALL_TOO_LONG     
         elif "TOO_LARGE" in error_str:
              msg_error = strings.ERROR_PREFIX + strings.ERROR_TOO_LARGE
         else:
             logger.error(f"Download/Search Error: {error_str}", exc_info=True)
             msg_error = strings.ERROR_PREFIX + error_str
-
-    else:
-        return
 
     finally:
         if status:
@@ -187,19 +192,23 @@ async def message_handler(message: types.Message):
             except: pass
         if base:
             cleanup_temp_files(base)
-
-    err = await message.answer(msg_error)
-    await asyncio.sleep(5)
-    try: await err.delete()
-    except Exception: pass
+        
+        if 'msg_error' in locals():
+            err = await message.answer(msg_error)
+            await asyncio.sleep(5)
+            try: await err.delete()
+            except: pass
 
 
 @dp.message(F.audio)
 async def direct_audio_handler(message: types.Message):
     if not ENABLE_INLINE_SEARCH:
         return
-
-    user_id = message.from_user.id
+    
+    if not message.from_user or not message.audio:
+        return
+    
+    user_id = message.from_user.id 
 
     if message.date.timestamp() < BOT_START_TIME: return
     

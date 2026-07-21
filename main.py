@@ -2,14 +2,16 @@
 
 import asyncio
 import os
-import logging
 import sys
+from colorama import init, Fore
+
+init(autoreset=True)
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from core.config import dp, bot, logger, CONCURRENT_DOWNLOAD_LIMIT, ENABLE_INLINE_SEARCH, CHAT_DB_PATH, CHANNEL_DB_PATH
 from core.services import storage
-from core.services.youtube import close_global_session
+from core.services.youtube import close_global_session, init_http_session
 from core.handlers import messages, callbacks
 from core.handlers.channel_posts import router as channel_router
 from core.yt_dlp_update.yt_dlp_manager import initialize as initialize_yt_dlp 
@@ -18,20 +20,31 @@ if ENABLE_INLINE_SEARCH:
     from core.handlers.inline_mode import router as inline_router
     from core.services.inline_search.database import init_db as init_inline_db
 
+async def on_shutdown():
+    logger.warning("Bot is shutting down. Cleaning up resources...")
+    await close_global_session()
+    logger.info("HTTP session closed. Bot stopped gracefully.")
 
 async def main():
     logger.info("Starting bot initialization...")
-    
-    if not bot.token:
-        logger.error("BOT_TOKEN is not set in the .env file. The bot cannot start.")
-        return
 
+    init_http_session()
+
+    if os.path.exists('data/cookies.txt'):
+        logger.info("Cookies file found and loaded!")
+    else:
+        logger.warning(f"{Fore.YELLOW}Cookies: NOT FOUND. If downloads fail, place cookies.txt in /data.")
+
+    dp.shutdown.register(on_shutdown)
+
+    await storage.initialize_db()
+    
     try:
         if not initialize_yt_dlp():
             logger.critical("FATAL: Failed to ensure yt-dlp package is ready. Aborting.")
             return
     except RuntimeError as e:
-        logger.critical(f"FATAL: yt-dlp initialization failed: {e}")
+        logger.critical("FATAL: yt-dlp initialization failed", exc_info=True)
         return
         
     if ENABLE_INLINE_SEARCH:
@@ -42,12 +55,12 @@ async def main():
             dp.include_router(inline_router)
             logger.info("Inline router registered successfully.")
         except Exception as e:
-            logger.critical(f"FATAL ERROR during Inline Search initialization: {e}")
+            logger.critical("FATAL ERROR during Inline Search initialization", exc_info=True)
             
     dp.include_router(channel_router)
     logger.info("Channel indexing router registered successfully.")
             
-    storage.cleanup_expired_data()
+    await storage.cleanup_expired_data()
     
     logger.info(f"Starting polling with {CONCURRENT_DOWNLOAD_LIMIT} concurrent download limit.")
     
@@ -63,4 +76,4 @@ if __name__ == "__main__":
     except (KeyboardInterrupt, SystemExit):
         logger.warning("Bot stopped!")
     except Exception as e:
-        logger.critical(f"Critical error during bot runtime: {e}")
+        logger.critical("Critical error during bot runtime", exc_info=True)

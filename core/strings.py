@@ -2,9 +2,10 @@ import random
 
 COMMAND_PREFIX = "music " 
 
-STATUS_SEARCHING = "🔍 Searching..."
+STATUS_SEARCHING = "🔍"
 ERROR_PREFIX = "❌ Error: "
 ERROR_LONG_AUDIO = "Track is longer than 15 minutes."
+ERROR_SEARCH_ALL_TOO_LONG = "All found tracks are longer than 15 minutes."
 ERROR_TOO_LARGE = "File is larger than {} MB.".format(50)
 ERROR_NO_RESULTS = "No results found."
 

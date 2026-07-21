@@ -1,9 +1,10 @@
 import time
 import asyncio
 import os
+from functools import wraps
 from typing import Dict, Any, Optional, Tuple
-from aiogram import F, types
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, InputMediaAudio, BufferedInputFile
+from aiogram import F
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, InputMediaAudio, BufferedInputFile, FSInputFile, Message
 from aiogram.exceptions import TelegramBadRequest
 from core import strings
 from core.config import dp, bot, logger, MAX_SONG_DURATION_SEC, ANTI_SPAM_CALLBACK_INTERVAL
@@ -16,24 +17,21 @@ from core.services.storage import (
 )
 
 def check_callback_spam(func):
-  async def wrapper(cq: CallbackQuery):
-    user_id = cq.from_user.id
-    now = time.time()
-    
-    if now - user_last_request_time.get(user_id, 0) < ANTI_SPAM_CALLBACK_INTERVAL:
-      
-      user_last_request_time[user_id] = now
-      
-      return
+    @wraps(func)
+    async def wrapper(cq: CallbackQuery, *args, **kwargs):
+        user_id = cq.from_user.id
+        now = time.time()
+        
+        if now - user_last_request_time.get(user_id, 0) < ANTI_SPAM_CALLBACK_INTERVAL:
+            user_last_request_time[user_id] = now
+            return
 
-    user_last_request_time[user_id] = now 
-    
-    await func(cq)
+        user_last_request_time[user_id] = now 
+        return await func(cq, *args, **kwargs)
+    return wrapper
 
-  return wrapper
-
-def _check_access(cq: CallbackQuery, key: str) -> Optional[Tuple[Dict[str, Any], int]]:
-  data_storage = get_song_data(key) 
+async def _check_access(cq: CallbackQuery, key: str) -> Optional[Tuple[Dict[str, Any], int]]:
+  data_storage = await get_song_data(key)
 
   if not data_storage:
     asyncio.create_task(bot.answer_callback_query(
@@ -67,7 +65,7 @@ def _check_access(cq: CallbackQuery, key: str) -> Optional[Tuple[Dict[str, Any],
 @check_callback_spam
 async def show_alternatives(cq: CallbackQuery):
   key = cq.data[4:] # type: ignore 
-  result = _check_access(cq, key)
+  result = await _check_access(cq, key)
   if not result:
     return
   entry, _ = result # type: ignore 
@@ -114,7 +112,7 @@ async def show_alternatives(cq: CallbackQuery):
 @check_callback_spam
 async def cancel_alt(cq: CallbackQuery):
   key = cq.data[7:] # type: ignore 
-  result = _check_access(cq, key)
+  result = await _check_access(cq, key)
   if not result:
     return
   entry, _ = result # type: ignore 
@@ -143,7 +141,7 @@ async def choose_song(cq: CallbackQuery):
   key = parts[1]
   video_id = parts[2]
   
-  result = _check_access(cq, key)
+  result = await _check_access(cq, key)
   if not result:
     return
   entry, message_id = result # type: ignore 
@@ -195,36 +193,35 @@ async def choose_song(cq: CallbackQuery):
     await cq.answer("Error during download. No audio file found.", show_alert=True)
     return
 
-  with open(file, "rb") as f:
-    audio = BufferedInputFile(f.read(), filename=os.path.basename(file))
-
   thumbnail = None
-  if thumb:
-    with open(thumb, "rb") as t:
-      thumbnail = BufferedInputFile(t.read(), filename=os.path.basename(thumb))
+  if thumb and os.path.exists(thumb):
+      thumbnail = FSInputFile(thumb) 
 
   sender_name = cq.from_user.full_name
   btn_text = strings.BUTTON_REQUESTER.format(sender_name)
   kb = InlineKeyboardMarkup(inline_keyboard=[
-    [InlineKeyboardButton(text=btn_text, callback_data=f"info_{key}")]
+      [InlineKeyboardButton(text=btn_text, callback_data=f"info_{key}")]
   ])
 
   try:
-    if cq.message and cq.message.chat:
-      await bot.edit_message_media( # type: ignore 
-        media=InputMediaAudio(media=audio, title=info.get("title"), performer=info.get("uploader"), thumbnail=thumbnail),
-        chat_id=cq.message.chat.id, 
-        message_id=message_id, 
-        reply_markup=kb
-)
-    else:
-        raise TelegramBadRequest("Message or chat is inaccessible/None.") # type: ignore
+      if cq.message and isinstance(cq.message, Message):
+          await cq.message.edit_media(
+              media=InputMediaAudio(
+                  media=FSInputFile(file),  
+                  title=info.get("title"), 
+                  performer=info.get("uploader"), 
+                  thumbnail=thumbnail
+              ),
+              reply_markup=kb
+          )
+      else:
+          logger.error("Message is inaccessible or not a valid Message object.")
 
   except TelegramBadRequest as e:
-    cleanup_temp_files(base)
-    logger.error(f"TelegramBadRequest when updating media: {e}")
-    await cq.answer(strings.FAILED_TO_UPDATE.format(str(e)), show_alert=True)
-    return
+      cleanup_temp_files(base)
+      logger.error(f"TelegramBadRequest when updating media: {e}")
+      await cq.answer(strings.FAILED_TO_UPDATE.format(str(e)), show_alert=True)
+      return
 
   new_song_data = {
     **entry,
@@ -235,7 +232,7 @@ async def choose_song(cq: CallbackQuery):
     "like_count": info.get("like_count") or 0,
     "dislike_count": await get_dislikes(info.get("id")), "timestamp": time.time(),
   }
-  set_song_data(key, message_id, new_song_data)
+  await set_song_data(key, message_id, new_song_data)
   
   cleanup_temp_files(base) 
   await cq.answer(strings.SONG_UPDATED)
@@ -245,7 +242,7 @@ async def choose_song(cq: CallbackQuery):
 @check_callback_spam
 async def show_song_info(cq: CallbackQuery):
   key = cq.data[5:] # type: ignore
-  data_storage = get_song_data(key)
+  data_storage = await get_song_data(key)
 
   if not data_storage:
     await cq.answer(strings.INFO_EXPIRED, show_alert=True)

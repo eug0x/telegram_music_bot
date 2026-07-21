@@ -1,6 +1,7 @@
 # config
 
 import os
+import sys
 import asyncio
 import logging
 import time
@@ -28,7 +29,7 @@ file_handler.setFormatter(logging.Formatter(
     '[%(asctime)s] [%(levelname)s] %(message)s', 
     datefmt='%Y-%m-%d %H:%M:%S'
 ))
-file_handler.setLevel(logging.ERROR)
+file_handler.setLevel(logging.INFO)
 console_handler = logging.StreamHandler(sys.stdout)
 console_handler.setFormatter(logging.Formatter(
     '[%(asctime)s] [%(levelname)s] %(message)s', 
@@ -43,6 +44,13 @@ logger = logging.getLogger(__name__)
 
 BOT_TOKEN: str = os.getenv('BOT_TOKEN', '')
 ALLOWED_CHAT_RAW = os.getenv('ALLOWED_CHAT_ID', '')
+
+DEFAULT_HTTP_HEADERS = {
+    'User-Agent': 'com.google.android.youtube/19.14.35 (Linux; U; Android 14; en_US) gzip',
+    'Accept-Language': 'en-US,en;q=0.9',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+    'Accept-Encoding': 'gzip, deflate',
+}
 
 music_channel_id_raw = os.getenv('MUSIC_CHANNEL_ID', '').strip()
 CHANNEL_ID: int = int(music_channel_id_raw) if music_channel_id_raw else -1 
@@ -88,7 +96,11 @@ else:
         ALLOWED_CHAT_IDS: List[int] = []
         logger.error(f"Invalid format for ALLOWED_CHAT_ID: {ALLOWED_CHAT_RAW}. Access restricted.")
 
-bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode="HTML"))
+if not BOT_TOKEN:
+    print(f"\033[91m[CRITICAL] BOT_TOKEN is not set in the .env file. The bot cannot start.\033[0m")
+    sys.exit(1) 
+else:
+    bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode="HTML"))
 dp = Dispatcher()
 channel_router = Router()
 

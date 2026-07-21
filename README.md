@@ -1,4 +1,4 @@
-# Telegram Music Bot: YouTube Audio Downloader
+# YouTube Audio Downloader for Telegram
 
 <div align="center">
 <img src="static/header.png" alt="FloppyMusicBot Header Image" align="center" style="width: 100%; border-radius: 10px;" />
@@ -11,8 +11,8 @@
 ## ⚡ Features Summary
 
 * **⚡ Fast Downloads:** Get your audio tracks delivered in just **5–15 seconds**.
-* **📥 Inline Search (v1.1.0):** Search tracks instantly within the bot's internal databases without downloading from YouTube.
-* **📦 Self-Updating Music Archive (v1.1.0):** Tracks sent to the storage channel are automatically indexed, de-duplicated, and ready for instant reuse.
+* **📥 Inline Search:** Search tracks instantly within the bot's internal databases without downloading from YouTube.
+* **📦 Self-Updating Music Archive:** Tracks sent to the storage channel are automatically indexed, de-duplicated, and ready for instant reuse.
 
 
 * **🧹 Clean Interface:** Bot auto-deletes the user command, keeping your chat tidy.
@@ -71,12 +71,14 @@ Use Telegram inline mode anywhere:
 
 1.  **Zero-Conversion (Maximum Speed):** The bot leverages Telegram's ability to play various audio formats by simply **renaming the extension to `.mp3`**. This eliminates CPU-heavy transcoding (no FFMpeg dependency).
 
-2.  **Asynchronous Core:** Built on the high-performance `aiogram`.
+2.  **Cookies Configuration:** Place your export file at `data/cookies.txt` so `yt-dlp` can authenticate properly.
 
 3. The yt-dlp core is automatically checked and updated upon bot restart (default 24h). Update frequency is customizable in core/yt_dlp_update/yt_dlp_manager.py via EXPIRATION_SECONDS.
 
 4. **Separated Audio Databases (Key-Based Storage):**  
    Audio references are stored as **Telegram `file_id` keys**, not raw files.
+
+5. **Cookies Configuration:** Place your export file at `data/cookies.txt` so `yt-dlp` can authenticate properly.
 
    - `music_channel.db` — primary, curated storage populated from a private channel  
      • MP3-only validation
@@ -88,6 +90,8 @@ Use Telegram inline mode anywhere:
      • Automatically filled on `music` usage  
      • It uses the chats it’s added to as sources for audio files
      • Grows naturally with real usage
+
+6. **Data Directory Cleanup:** You can safely delete any temporary files inside the `data` folder except for `cookies.txt` and `.env` (databases will be recreated automatically).
 
 
 ## ⚙️ Customization (via `core/strings.py`)

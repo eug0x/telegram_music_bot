@@ -27,18 +27,18 @@ def _update_yt_dlp_package() -> bool:
             with open(LAST_UPDATE_TIMESTAMP_FILE, 'w') as f:
                 f.write(str(int(time.time())))
             logger.debug(f"Updated timestamp file: {LAST_UPDATE_TIMESTAMP_FILE}")
-        except Exception as e:
-            logger.error(f"Failed to write update timestamp: {e}")
+        except Exception:
+            logger.exception("Failed to write update timestamp")
             
         return True
     except subprocess.CalledProcessError as e:
-        logger.error(f"Failed to update yt-dlp via pip. Stderr: {e.stderr} Stdout: {e.stdout}")
+        logger.exception(f"Failed to update yt-dlp via pip. Stderr: {e.stderr} Stdout: {e.stdout}")
         return False
     except FileNotFoundError:
-        logger.error("pip command not found. Ensure pip is correctly installed.")
+        logger.exception("pip command not found. Ensure pip is correctly installed.")
         return False
     except Exception as e:
-        logger.error(f"An unexpected error occurred during pip update: {e}")
+        logger.exception(f"An unexpected error occurred during pip update: {e}")
         return False
 
 def check_and_update_needed() -> bool:
@@ -57,8 +57,8 @@ def check_and_update_needed() -> bool:
         
         logger.info("yt-dlp check interval not yet expired. No update needed.")
         return False
-    except Exception as e:
-        logger.warning(f"Error checking update timestamp, forcing update attempt: {e}")
+    except Exception:
+        logger.warning("Error checking update timestamp, forcing update attempt", exc_info=True)
         return True
 
 def initialize() -> bool:
@@ -70,7 +70,7 @@ def initialize() -> bool:
         logger.info("yt-dlp package is available.")
         return True
     except ImportError:
-        logger.error("The 'yt-dlp' package is not installed and cannot be imported.")
+        logger.exception("The 'yt-dlp' package is not installed and cannot be imported.")
         logger.info("Attempting one final installation of yt-dlp since import failed...")
         if _update_yt_dlp_package():
              try:
