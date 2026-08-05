@@ -1,6 +1,6 @@
 import random
 
-COMMAND_PREFIX = "music " 
+COMMAND_PREFIX = "music "
 
 STATUS_SEARCHING = "🔍"
 ERROR_PREFIX = "❌ Error: "
@@ -11,7 +11,7 @@ ERROR_NO_RESULTS = "No results found."
 
 TOO_FAST_CALLBACK = ""
 
-BUTTON_REQUESTER = "🎵{}" 
+BUTTON_REQUESTER = "🎵{}"
 BUTTON_NOT_RIGHT = "🔎 Not the right song?"
 BUTTON_CANCEL = "❌ Cancel"
 UNTITLED_SONG = "Untitled Song"
@@ -24,15 +24,15 @@ FAILED_TO_UPDATE = "Failed to update message: {}"
 
 def get_song_info_message(data, views, likes, dislikes):
     """Generates the formatted song information message."""
-    
+
     tagline = random.choice([
         "The oldest song found is a 3400-year-old hymn from Ugarit.",
         "A 40,000-year-old bird bone flute is considered the first instrument."
     ])
-    
+
     year = data.get("upload_date", "")
     year = year[:4] if year else UNKNOWN_VALUE
-    
+
     return (
         f"👤 Artist: {data.get('artist', UNKNOWN_VALUE)}\n"
         f"📅 Year: {year}\n"

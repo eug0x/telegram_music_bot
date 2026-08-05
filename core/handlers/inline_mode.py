@@ -10,7 +10,7 @@ from ..services.inline_search.rapidfuzz_search import search_rapidfuzz
 
 import core.config as Config
 
-user_throttle = TTLCache(maxsize=1000, ttl=0.5)
+user_throttle = TTLCache(maxsize=1000, ttl=Config.INLINE_SEARCH_THROTTLE_TTL)
 
 CHANNEL_ID = Config.CHANNEL_ID
 router = Router()
@@ -32,8 +32,8 @@ async def combine_search_results(query: str):
     fts_chat = fts_results[1] if len(fts_results) > 1 else []
 
     fuzzy_tasks = [
-        search_rapidfuzz(clean_query, fts_channel, limit=100, cutoff=35),
-        search_rapidfuzz(clean_query, fts_chat, limit=100, cutoff=35),
+        search_rapidfuzz(clean_query, fts_channel, limit=100, cutoff=25),
+        search_rapidfuzz(clean_query, fts_chat, limit=100, cutoff=25),
     ]
     all_results = await asyncio.gather(*fuzzy_tasks)
 

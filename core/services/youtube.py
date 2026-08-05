@@ -1,4 +1,4 @@
-# core\services\youtube.py
+# core/services/youtube.py
 
 import asyncio
 import os
@@ -65,12 +65,18 @@ async def close_global_session() -> None:
         _GLOBAL_HTTP_SESSION = None
 
 
-def cleanup_temp_files(base: str) -> None:
-    for f in glob.glob(f"{base}.*"):
+def _cleanup_temp_files_sync(temp_file_base: str) -> None:
+    for f in glob.glob(f"{temp_file_base}.*"):
         try:
             os.remove(f)
         except OSError as e:
             logger.warning(f"Failed to remove temp file {f}: {e}")
+
+
+async def cleanup_temp_files(temp_file_base: str) -> None:
+    if not temp_file_base:
+        return
+    await asyncio.to_thread(_cleanup_temp_files_sync, temp_file_base)
 
 
 # yt-dlp options
@@ -171,13 +177,13 @@ async def get_dislikes(video_id: str) -> Optional[int]:
 
 def _run_search(query: str) -> List[Dict[str, Any]]:
     refined_query = f"{query} official music video"
-    with YoutubeDL(_search_ydl_opts()) as ydl: # type: ignore
+    with YoutubeDL(_search_ydl_opts()) as ydl:  # type: ignore
         try:
             result = ydl.extract_info(f"ytsearch10:{refined_query}", download=False)
             entries = (result or {}).get("entries", [])
 
             if not entries:
-                return [] 
+                return []
 
             valid_entries = []
             has_overlong_tracks = False
@@ -186,8 +192,8 @@ def _run_search(query: str) -> List[Dict[str, Any]]:
                 duration = entry.get("duration")
                 if duration and duration > MAX_SONG_DURATION_SEC:
                     has_overlong_tracks = True
-                    continue 
-                
+                    continue
+
                 valid_entries.append(entry)
 
             if not valid_entries and has_overlong_tracks:
@@ -198,7 +204,8 @@ def _run_search(query: str) -> List[Dict[str, Any]]:
         except DownloadError:
             logger.error(f"yt-dlp search failed for query: {query}")
             return []
-        
+
+
 async def search_multiple(query: str) -> List[Dict[str, Any]]:
     try:
         return await asyncio.wait_for(
@@ -210,7 +217,7 @@ async def search_multiple(query: str) -> List[Dict[str, Any]]:
         return []
 
 
-# Donwload
+# Download
 
 def _precheck_duration_and_size(url: str) -> None:
     with YoutubeDL(_precheck_ydl_opts()) as ydl:  # type: ignore
@@ -225,9 +232,9 @@ def _precheck_duration_and_size(url: str) -> None:
         raise Exception("TOO_LARGE_PRECHECK")
 
 
-def _locate_downloaded_file(base: str, extensions: Tuple[str, ...]) -> Optional[str]:
+def _locate_downloaded_file(temp_file_base: str, extensions: Tuple[str, ...]) -> Optional[str]:
     for ext in extensions:
-        candidate = f"{base}.{ext}"
+        candidate = f"{temp_file_base}.{ext}"
         if os.path.exists(candidate):
             return candidate
     return None
@@ -237,35 +244,38 @@ def _normalize_to_mp3(audio_file: str) -> str:
     if audio_file.endswith('.mp3'):
         return audio_file
 
-    base, _ = os.path.splitext(audio_file)
-    new_mp3 = f"{base}.mp3"
+    file_base, _ = os.path.splitext(audio_file)
+    new_mp3 = f"{file_base}.mp3"
     if os.path.exists(new_mp3):
         os.remove(new_mp3)
     os.rename(audio_file, new_mp3)
     return new_mp3
 
 
-def _run_download(url: str):
+def _run_download(url: str) -> Tuple[Dict[str, Any], Optional[str], Optional[str], str]:
     _precheck_duration_and_size(url)
 
     unique_id = uuid.uuid4().hex
-    base_path = os.path.join(TEMP_PATH, unique_id)
+    temp_file_base = os.path.join(TEMP_PATH, unique_id)
 
-    with YoutubeDL(_download_ydl_opts(f'{base_path}.%(ext)s')) as ydl:  # type: ignore
-        info = ydl.extract_info(url, download=True)
-        base = os.path.splitext(ydl.prepare_filename(info))[0]
+    try:
+        with YoutubeDL(_download_ydl_opts(f'{temp_file_base}.%(ext)s')) as ydl:  # type: ignore
+            info = ydl.extract_info(url, download=True)
+            temp_file_base = os.path.splitext(ydl.prepare_filename(info))[0]
 
-    audio_file = _locate_downloaded_file(base, AUDIO_EXTENSIONS)
-    if audio_file:
-        audio_file = _normalize_to_mp3(audio_file)
+        audio_file = _locate_downloaded_file(temp_file_base, AUDIO_EXTENSIONS)
+        if audio_file:
+            audio_file = _normalize_to_mp3(audio_file)
 
-    thumb = _locate_downloaded_file(base, THUMBNAIL_EXTENSIONS)
+        thumb = _locate_downloaded_file(temp_file_base, THUMBNAIL_EXTENSIONS)
 
-    if audio_file and os.path.getsize(audio_file) > MAX_FILE_SIZE_BYTES:
-        cleanup_temp_files(base)
-        raise Exception("TOO_LARGE_POSTCHECK")
+        if audio_file and os.path.getsize(audio_file) > MAX_FILE_SIZE_BYTES:
+            raise Exception("TOO_LARGE_POSTCHECK")
 
-    return info, audio_file, thumb, base
+        return info, audio_file, thumb, temp_file_base
+    except Exception:
+        _cleanup_temp_files_sync(temp_file_base)
+        raise
 
 
 async def download_by_url(url: str):

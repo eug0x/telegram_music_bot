@@ -14,7 +14,7 @@ from core.services import storage
 from core.services.youtube import close_global_session, init_http_session
 from core.handlers import messages, callbacks
 from core.handlers.channel_posts import router as channel_router
-from core.yt_dlp_update.yt_dlp_manager import initialize as initialize_yt_dlp 
+from core.yt_dlp_update.yt_dlp_manager import initialize as initialize_yt_dlp
 
 if ENABLE_INLINE_SEARCH:
     from core.handlers.inline_mode import router as inline_router
@@ -38,15 +38,15 @@ async def main():
     dp.shutdown.register(on_shutdown)
 
     await storage.initialize_db()
-    
+
     try:
-        if not initialize_yt_dlp():
+        if not await asyncio.to_thread(initialize_yt_dlp):
             logger.critical("FATAL: Failed to ensure yt-dlp package is ready. Aborting.")
             return
     except RuntimeError as e:
         logger.critical("FATAL: yt-dlp initialization failed", exc_info=True)
         return
-        
+
     if ENABLE_INLINE_SEARCH:
         try:
             logger.info("Inline Search module enabled. Initializing databases...")
@@ -56,14 +56,14 @@ async def main():
             logger.info("Inline router registered successfully.")
         except Exception as e:
             logger.critical("FATAL ERROR during Inline Search initialization", exc_info=True)
-            
+
     dp.include_router(channel_router)
     logger.info("Channel indexing router registered successfully.")
-            
+
     await storage.cleanup_expired_data()
-    
+
     logger.info(f"Starting polling with {CONCURRENT_DOWNLOAD_LIMIT} concurrent download limit.")
-    
+
     try:
         await dp.start_polling(bot)
     finally:

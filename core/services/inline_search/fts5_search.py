@@ -1,43 +1,43 @@
 import os
 import logging
-import re
 from typing import List, Tuple
 
 from ..storage import get_db
+from core.utils.text import normalize_text
 
 logger = logging.getLogger(__name__)
 
 
-def _normalize_for_fts(text: str) -> str:
-    if not text:
-        return ""
-    text = text.lower()
-    text = re.sub(r'\[.*?\]|\(.*?\)|\{.*?\}', ' ', text)
-    text = re.sub(r'[^\w\s]', ' ', text)
-    text = re.sub(r'\s+', ' ', text).strip()
-    return text
+def _build_fts_match_query(words: List[str]) -> str:
+
+    terms = []
+    for word in words:
+        safe_word = word.replace('"', '')
+        if not safe_word:
+            continue
+        terms.append(f'{safe_word}*')
+    return " OR ".join(terms)
 
 
 async def search_fts(query: str, db_name: str, limit: int = 500) -> List[Tuple]:
 
-    q_clean = _normalize_for_fts(query)
+    q_clean = normalize_text(query, strip_noise_words=False)
     if not q_clean or len(q_clean) < 2:
         return []
 
     db_tag = os.path.basename(db_name).split('.')[0]
 
     words = q_clean.split()
-    fts_query = " ".join(
-        f'"{word}*"' if len(word) >= 5 else f'"{word}"'
-        for word in words
-    )
+    fts_query = _build_fts_match_query(words)
+    if not fts_query:
+        return []
 
     sql = """
-        SELECT 
-            s.id, 
-            s.file_id, 
-            s.title, 
-            s.performer, 
+        SELECT
+            s.id,
+            s.file_id,
+            s.title,
+            s.performer,
             s.is_cached
         FROM songs_fts fts
         JOIN songs s ON s.id = fts.rowid
@@ -51,7 +51,7 @@ async def search_fts(query: str, db_name: str, limit: int = 500) -> List[Tuple]:
             cursor = await db.execute(sql, (fts_query, limit))
             rows = await cursor.fetchall()
             result = [(*row, db_tag) for row in rows]
-            
+
             if len(result) > 0:
                 logger.debug(f"FTS5 {db_tag}: {len(result)} candidates for '{q_clean}'")
             return result

@@ -1,4 +1,8 @@
+<div align="center">
+
 # YouTube Audio Downloader for Telegram
+
+</div>
 
 <div align="center">
 <img src="static/header.png" alt="FloppyMusicBot Header Image" align="center" style="width: 100%; border-radius: 10px;" />
@@ -132,6 +136,11 @@ The bot's interface and command structure can be fully customized by editing **`
 │   │           fts5_search.py    # Full-text search
 │   │           rapidfuzz_search.py # Fuzzy matching
 │   │
+│   └───temp                  # For media downloads (auto-cleaned)
+│   │
+│   ├───utils/
+│   │       text.py           # Text normalization & SQL escape utilities
+│   │
 │   └───yt_dlp_update/        
 │           yt_dlp_manager.py # yt-dlp auto-updater 
 │
@@ -141,6 +150,7 @@ The bot's interface and command structure can be fully customized by editing **`
 │   │   songs_cache.db        # Cache metadata file 
 │   │   music_channel.db      # Primary storage channel index; holds persistent track keys
 │   │   music_chat.db         # Dynamic user/download cache; stores track keys from chats  
+│   │   cookies.txt           # bypassing age restrictions, authorization
 ```
 
 

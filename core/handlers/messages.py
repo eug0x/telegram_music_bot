@@ -35,7 +35,7 @@ if ENABLE_INLINE_SEARCH:
 async def remove_not_right_button(sent_message, key, full_name):
     await asyncio.sleep(60)
     try:
-        current_data = await get_song_data(key) 
+        current_data = await get_song_data(key)
         if not current_data:
             return
 
@@ -57,26 +57,26 @@ async def remove_not_right_button(sent_message, key, full_name):
 
 @dp.message()
 async def message_handler(message: types.Message):
-    
+
     if not message.from_user:
         return
 
     user_id = message.from_user.id
     sender_name = message.from_user.full_name
 
-    base = None
+    temp_file_base = None
     key = None
     status = None
 
     if message.date.timestamp() < BOT_START_TIME: return
-    
+
     is_private_chat = message.chat.type == 'private'
     is_allowed_group: bool = (0 in ALLOWED_CHAT_IDS or message.chat.id in ALLOWED_CHAT_IDS)
 
     if is_private_chat:
         if not ALLOW_PRIVATE_CHAT:
             return
-            
+
     elif not is_allowed_group:
         return
 
@@ -113,10 +113,10 @@ async def message_handler(message: types.Message):
             url = first.get("url") or first.get("webpage_url")
             if not url: raise NoUrlError("NO_URL")
 
-            info, file, thumb, base = await download_by_url(url)
+            info, file, thumb, temp_file_base = await download_by_url(url)
 
             if not file: raise NoAudioError("NO_AUDIO")
-            
+
         audio = FSInputFile(file, filename=os.path.basename(file))
 
         thumbnail = None
@@ -128,7 +128,7 @@ async def message_handler(message: types.Message):
 
         song_data = {
             "title": info.get("title"), "artist": info.get("uploader"), "thumb": thumb,
-            "file": file, "base": base, "query": query, "url": url,
+            "file": file, "base": temp_file_base, "query": query, "url": url,
             "requester": user_id, "duration": info.get("duration"), "upload_date": info.get("upload_date"),
             "view_count": info.get("view_count"), "like_count": info.get("like_count"),
             "dislike_count": await get_dislikes(info.get("id")), "timestamp": time.time(),
@@ -179,7 +179,7 @@ async def message_handler(message: types.Message):
         if "LONG_AUDIO" in error_str:
              msg_error = strings.ERROR_PREFIX + strings.ERROR_LONG_AUDIO
         elif "SEARCH_ALL_TOO_LONG" in error_str:
-             msg_error = strings.ERROR_PREFIX + strings.ERROR_SEARCH_ALL_TOO_LONG     
+             msg_error = strings.ERROR_PREFIX + strings.ERROR_SEARCH_ALL_TOO_LONG
         elif "TOO_LARGE" in error_str:
              msg_error = strings.ERROR_PREFIX + strings.ERROR_TOO_LARGE
         else:
@@ -190,9 +190,9 @@ async def message_handler(message: types.Message):
         if status:
             try: await status.delete()
             except: pass
-        if base:
-            cleanup_temp_files(base)
-        
+        if temp_file_base:
+            await cleanup_temp_files(temp_file_base)
+
         if 'msg_error' in locals():
             err = await message.answer(msg_error)
             await asyncio.sleep(5)
@@ -204,21 +204,21 @@ async def message_handler(message: types.Message):
 async def direct_audio_handler(message: types.Message):
     if not ENABLE_INLINE_SEARCH:
         return
-    
+
     if not message.from_user or not message.audio:
         return
-    
-    user_id = message.from_user.id 
+
+    user_id = message.from_user.id
 
     if message.date.timestamp() < BOT_START_TIME: return
-    
+
     is_private_chat = message.chat.type == 'private'
     is_allowed_group: bool = (0 in ALLOWED_CHAT_IDS or message.chat.id in ALLOWED_CHAT_IDS)
 
     if is_private_chat:
         if not ALLOW_PRIVATE_CHAT:
             return
-            
+
     elif not is_allowed_group:
         return
 
@@ -228,7 +228,7 @@ async def direct_audio_handler(message: types.Message):
 
     try:
         result = await save_audio_to_db(message.audio, CHAT_DB_PATH, FUZZY_DUPLICATE_THRESHOLD)
-        
+
         if result == True:
             logger.info(f"Audio saved to DB (direct upload): {message.audio.performer} - {message.audio.title}")
         elif result and result.startswith("duplicate"):
