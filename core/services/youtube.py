@@ -95,6 +95,7 @@ def _base_ydl_opts() -> Dict[str, Any]:
 
 def _enable_node_js_runtime(opts: Dict[str, Any]) -> Dict[str, Any]:
     opts['js_runtimes'] = {'node': {}}
+    opts['remote_components'] = ['ejs:github']
     return opts
 
 
