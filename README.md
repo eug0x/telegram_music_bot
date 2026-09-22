@@ -199,6 +199,7 @@ Set up your bot by creating a `data/.env` file and filling out the necessary par
 ## 🚀 Installation & Run
 ### Requirements:
 - Python 3.10+
+- Node.js (version 22+ recommended - required for yt-dlp to solve YT JS challenges)
 ### Quick Setup for MUSIC_STORAGE_CHANNEL_ID
 `optional`
 1. Create a private channel and give your bot admin rights.  
